@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Live Chat</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+
+<style>
+body {
+    font-family: Arial;
+    text-align: center;
+}
+#messages {
+    height: 300px;
+    border: 1px solid black;
+    overflow-y: scroll;
+    margin: 20px;
+    padding: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Welcome {{user}}</h2>
+
+<div id="messages"></div>
+
+<input id="msg" placeholder="Type message">
+<button onclick="sendMsg()">Send</button>
+
+<script>
+var socket = io();
+
+socket.on('message', function(msg) {
+    let div = document.getElementById("messages");
+    div.innerHTML += "<p>" + msg + "</p>";
+});
+
+function sendMsg() {
+    let msg = document.getElementById("msg").value;
+    socket.send(msg);
+    document.getElementById("msg").value = "";
+}
+</script>
+
+</body>
+</html>
