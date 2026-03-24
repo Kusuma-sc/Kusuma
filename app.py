@@ -4,4 +4,4 @@ app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "Server Working"
+    return "WORKING NOW 100% ✅"
