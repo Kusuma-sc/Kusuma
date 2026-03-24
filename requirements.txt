@@ -1,4 +1,4 @@
-Flask
-Flask-SocketIO
+flask
+flask-socketio
 eventlet
-mysql-connector-python
+gunicorn

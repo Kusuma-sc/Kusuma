@@ -1,97 +1,72 @@
 from flask import Flask, render_template, request, redirect, session
-from flask_socketio import SocketIO, emit, join_room
-import mysql.connector
-import os
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.secret_key = "secret123"
 
-# SocketIO
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
-# DATABASE CONNECTION
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="Kusumasc@345__",
-    database="communication"
-)
+# store online users
+users = {}
 
-cursor = db.cursor()
+# ================= ROUTES =================
 
-# ---------------- LOGIN PAGE ----------------
 @app.route('/')
 def login():
     return render_template("login.html")
 
-# ---------------- REGISTER ----------------
-@app.route('/register', methods=['POST'])
-def register():
-    email = request.form['email']
-    password = request.form['password']
-
-    cursor.execute("INSERT INTO users(email, password) VALUES(%s,%s)", (email, password))
-    db.commit()
-
-    return redirect('/')
-
-# ---------------- LOGIN LOGIC ----------------
-@app.route('/login', methods=['POST'])
-def userlogin():
-    email = request.form['email']
-    password = request.form['password']
-
-    cursor.execute("SELECT * FROM users WHERE email=%s AND password=%s", (email, password))
-    user = cursor.fetchone()
-
-    if user:
-        session['user'] = email
-        return redirect('/chat')
-    else:
-        return "Login Failed"
-
-# ---------------- CHAT PAGE ----------------
-@app.route('/chat')
+@app.route('/chat', methods=['POST'])
 def chat():
-    if 'user' in session:
-        return render_template("chat.html", user=session['user'])
-    return redirect('/')
+    email = request.form.get("email")
+    session['email'] = email
+    return render_template("chat.html", email=email)
 
-# ---------------- LOGOUT ----------------
-@app.route('/logout')
-def logout():
-    session.pop('user', None)
-    return redirect('/')
+# ================= SOCKET =================
 
-# ================= SOCKET EVENTS =================
-
-# JOIN ROOM
-@socketio.on('join')
-def handle_join(data):
-    room = data['room']
-    join_room(room)
-    emit('message', {'msg': f"{data['user']} joined"}, room=room)
-
-# SEND MESSAGE
-@socketio.on('send_message')
-def handle_message(data):
-    emit('receive_message', data, room=data['room'])
-
-# ---------------- CALL SIGNALING ----------------
 @socketio.on('call_user')
 def call_user(data):
-    emit('incoming_call', data, room=data['to'])
+    target = data['target']
+    if target in users:
+        emit('incoming_call', {
+            'from': data['from']
+        }, to=users[target])
 
-@socketio.on('answer_call')
-def answer_call(data):
-    emit('call_answered', data, room=data['to'])
+@socketio.on('webrtc_offer')
+def handle_offer(data):
+    target = data['to']
+    if target in users:
+        emit('webrtc_offer', data, to=users[target])
+
+@socketio.on('webrtc_answer')
+def handle_answer(data):
+    target = data['to']
+    if target in users:
+        emit('webrtc_answer', data, to=users[target])
 
 @socketio.on('ice_candidate')
-def ice_candidate(data):
-    emit('ice_candidate', data, room=data['to'])
+def handle_ice(data):
+    target = data['to']
+    if target in users:
+        emit('ice_candidate', data, to=users[target])
 
-# ================= RUN =================
+        # WEBRTC SIGNALING
 
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
+        @socketio.on('webrtc_offer')
+        def handle_offer(data):
+            target = data['to']
+            if target in users:
+                emit('webrtc_offer', data, to=users[target])
+
+        @socketio.on('webrtc_answer')
+        def handle_answer(data):
+            target = data['to']
+            if target in users:
+                emit('webrtc_answer', data, to=users[target])
+
+        @socketio.on('ice_candidate')
+        def handle_ice(data):
+            target = data['to']
+            if target in users:
+                emit('ice_candidate', data, to=users[target])
+                if __name__ == "__main__":
+                    socketio.run(app, host="0.0.0.0", port=10000)

@@ -1,47 +1,136 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Live Chat</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-
-<style>
-body {
-    font-family: Arial;
-    text-align: center;
-}
-#messages {
-    height: 300px;
-    border: 1px solid black;
-    overflow-y: scroll;
-    margin: 20px;
-    padding: 10px;
-}
-</style>
-</head>
-
-<body>
-
-<h2>Welcome {{user}}</h2>
-
-<div id="messages"></div>
-
-<input id="msg" placeholder="Type message">
-<button onclick="sendMsg()">Send</button>
+    <title>Chat</title>
+<script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
 
 <script>
 var socket = io();
+var email = "{{ email }}";
 
-socket.on('message', function(msg) {
-    let div = document.getElementById("messages");
-    div.innerHTML += "<p>" + msg + "</p>";
+socket.emit('register', {email: email});
+
+let localStream;
+let peerConnection;
+
+const servers = {
+    iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        {
+            urls: "turn:relay.metered.ca:80",
+            username: "openai",
+            credential: "openai"
+        }
+    ]
+};
+    // add mic
+    localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+    });
+
+    // ICE
+    peerConnection.onicecandidate = event => {
+        if(event.candidate){
+            socket.emit('ice_candidate', {
+                to: target,
+                candidate: event.candidate
+            });
+        }
+    };
+
+    // receive audio
+    peerConnection.ontrack = event => {
+    const audio = document.createElement("audio");
+    audio.srcObject = event.streams[0];
+    audio.autoplay = true;
+    audio.controls = true;
+    document.body.appendChild(audio);
+};
+    };
+
+    let offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+
+    socket.emit('webrtc_offer', {
+        to: target,
+        from: email,
+        offer: offer
+    });
+}
+
+// RECEIVE CALL
+socket.on('webrtc_offer', async data => {
+
+    let accept = confirm("Incoming call from " + data.from);
+
+    if(!accept) return;
+
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    peerConnection = new RTCPeerConnection(servers);
+
+    localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+    });
+peerConnection.ontrack = event => {
+    console.log("Audio received");
+
+    const audio = document.createElement("audio");
+    audio.srcObject = event.streams[0];
+    audio.autoplay = true;
+    audio.controls = true;
+
+    document.body.appendChild(audio);
+};
+    peerConnection.ontrack = event => {
+        let audio = document.createElement("audio");
+        audio.srcObject = event.streams[0];
+        audio.autoplay = true;
+    };
+
+    peerConnection.onicecandidate = event => {
+        if(event.candidate){
+            socket.emit('ice_candidate', {
+                to: data.from,
+                candidate: event.candidate
+            });
+        }
+    };
+    peerConnection.ontrack = event => {
+    document.getElementById("remoteAudio").srcObject = event.streams[0];
+};
+
+    await peerConnection.setRemoteDescription(data.offer);
+
+    let answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+console.log("Mic working");
+
+    socket.emit('webrtc_answer', {
+        to: data.from,
+        answer: answer
+    });
 });
 
-function sendMsg() {
-    let msg = document.getElementById("msg").value;
-    socket.send(msg);
-    document.getElementById("msg").value = "";
-}
-</script>
+// ANSWER
+socket.on('webrtc_answer', async data => {
+    await peerConnection.setRemoteDescription(data.answer);
+});
 
+// ICE
+socket.on('ice_candidate', async data => {
+    try {
+        await peerConnection.addIceCandidate(data.candidate);
+    } catch(e){
+        console.log(e);
+        console.log("Tracks:", event.streams[0].getTracks());
+        <audio id="remoteAudio" autoplay controls></audio>
+    }
+});
+</script>
+<input id="callEmail" placeholder="Enter email">
+<button onclick="callUser()">📞 Call</button>
 </body>
 </html>
