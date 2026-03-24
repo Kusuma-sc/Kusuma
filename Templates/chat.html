@@ -13,6 +13,14 @@
 <h3 id="status"></h3>
 
 <script>
+    const socket = io();
+
+// ✅ REGISTER USER AFTER LOAD
+socket.on("connect", () => {
+    socket.emit("register", {
+        email: "{{email}}"
+    });
+});
 const socket = io();
 let pc;
 let localStream;

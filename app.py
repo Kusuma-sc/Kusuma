@@ -1,11 +1,11 @@
-import eventlet
-eventlet.monkey_patch()
 from flask import Flask, render_template, request, session
 from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.secret_key = "secret123"
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
+
+# ✅ IMPORTANT: use threading instead of eventlet
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 users = {}
 
@@ -16,29 +16,31 @@ def login():
 @app.route("/chat", methods=["POST"])
 def chat():
     email = request.form.get("email")
+
+    if not email:
+        return "Email required"
+
     session["email"] = email
     return render_template("chat.html", email=email)
 
-# ===== USER CONNECT =====
+# ===== SOCKET =====
 @socketio.on("connect")
 def connect():
-    email = session.get("email")
+    print("Client connected")
+
+@socketio.on("register")
+def register(data):
+    email = data.get("email")
     if email:
         users[email] = request.sid
+        print("Registered:", email)
 
-@socketio.on("disconnect")
-def disconnect():
-    for user, sid in list(users.items()):
-        if sid == request.sid:
-            users.pop(user)
-
-# ===== CALL =====
 @socketio.on("call_user")
 def call_user(data):
-    if data["target"] in users:
-        emit("incoming_call", {"from": data["from"]}, to=users[data["target"]])
+    target = data["target"]
+    if target in users:
+        emit("incoming_call", {"from": data["from"]}, to=users[target])
 
-# ===== WEBRTC =====
 @socketio.on("webrtc_offer")
 def offer(data):
     if data["to"] in users:
