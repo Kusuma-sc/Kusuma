@@ -17,11 +17,13 @@ const servers = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
         {
-            urls: "turn:relay.metered.ca:80",
-            username: "openai",
-            credential: "openai"
+            urls: "turn:openrelay.metered.ca:80",
+            username: "openrelayproject",
+            credential: "openrelayproject"
         }
     ]
+};
+<audio id="remoteAudio" autoplay controls></audio>
 };
     // add mic
     localStream.getTracks().forEach(track => {
@@ -57,6 +59,7 @@ const servers = {
         offer: offer
     });
 }
+await navigator.mediaDevices.getUserMedia({ audio: true });
 
 // RECEIVE CALL
 socket.on('webrtc_offer', async data => {
