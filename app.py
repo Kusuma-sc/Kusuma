@@ -21,6 +21,7 @@ def chat():
     session["email"] = email
     return render_template("chat.html", email=email)
 
+# ===== USER CONNECT =====
 @socketio.on("connect")
 def connect():
     email = session.get("email")
@@ -33,6 +34,24 @@ def disconnect():
         if sid == request.sid:
             users.pop(user)
 
-@socketio.on("send_message")
-def message(data):
-    emit("receive_message", data, broadcast=True)
+# ===== CALL =====
+@socketio.on("call_user")
+def call_user(data):
+    if data["target"] in users:
+        emit("incoming_call", {"from": data["from"]}, to=users[data["target"]])
+
+# ===== WEBRTC =====
+@socketio.on("webrtc_offer")
+def offer(data):
+    if data["to"] in users:
+        emit("webrtc_offer", data, to=users[data["to"]])
+
+@socketio.on("webrtc_answer")
+def answer(data):
+    if data["to"] in users:
+        emit("webrtc_answer", data, to=users[data["to"]])
+
+@socketio.on("ice_candidate")
+def ice(data):
+    if data["to"] in users:
+        emit("ice_candidate", data, to=users[data["to"]])
