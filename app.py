@@ -1,13 +1,11 @@
 import eventlet
 eventlet.monkey_patch()
-
 from flask import Flask, render_template, request, session
 from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.secret_key = "secret123"
-
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
 users = {}
 
