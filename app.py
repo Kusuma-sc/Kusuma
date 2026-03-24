@@ -1,22 +1,19 @@
 import eventlet
 eventlet.monkey_patch()
+
 from flask import Flask, render_template, request, session
 from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.secret_key = "secret123"
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
+socketio = SocketIO(app, cors_allowed_origins="*")
 
-# store online users
 users = {}
-
-# ================= ROUTES =================
 
 @app.route('/')
 def login():
     return render_template("login.html")
-
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -24,55 +21,35 @@ def chat():
     session['email'] = email
     return render_template("chat.html", email=email)
 
-
-# ================= SOCKET EVENTS =================
-
 @socketio.on('connect')
-def handle_connect():
+def connect():
     email = session.get('email')
     if email:
         users[email] = request.sid
-        print(f"{email} connected")
-
 
 @socketio.on('disconnect')
-def handle_disconnect():
+def disconnect():
     for user, sid in list(users.items()):
         if sid == request.sid:
-            print(f"{user} disconnected")
             users.pop(user)
-
-
-# ===== CALL =====
 
 @socketio.on('call_user')
 def call_user(data):
     target = data['target']
     if target in users:
-        emit('incoming_call', {
-            'from': data['from']
-        }, to=users[target])
-
-
-# ===== WEBRTC SIGNALING =====
+        emit('incoming_call', {'from': data['from']}, to=users[target])
 
 @socketio.on('webrtc_offer')
-def handle_offer(data):
-    target = data['to']
-    if target in users:
-        emit('webrtc_offer', data, to=users[target])
-
+def offer(data):
+    if data['to'] in users:
+        emit('webrtc_offer', data, to=users[data['to']])
 
 @socketio.on('webrtc_answer')
-def handle_answer(data):
-    target = data['to']
-    if target in users:
-        emit('webrtc_answer', data, to=users[target])
-
+def answer(data):
+    if data['to'] in users:
+        emit('webrtc_answer', data, to=users[data['to']])
 
 @socketio.on('ice_candidate')
-def handle_ice(data):
-    target = data['to']
-    if target in users:
-        emit('ice_candidate', data, to=users[target])
-
+def ice(data):
+    if data['to'] in users:
+        emit('ice_candidate', data, to=users[data['to']])
