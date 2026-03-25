@@ -24,12 +24,8 @@ let peerConnection;
 
 const config = {
   iceServers: [
-  { urls: "stun:stun.l.google.com:19302" },
-  {
-    urls: "turn:global.turn.twilio.com:3478?transport=udp",
-    username: "YOUR_SID",
-    credential: "YOUR_AUTH_TOKEN"
-  },
+  { urls: "stun:stun.l.google.com:19302" }
+]
   {
     urls: "turn:global.turn.twilio.com:3478?transport=tcp",
     username: "YOUR_SID",
